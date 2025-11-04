@@ -76,10 +76,10 @@ export default function PersonalDashboard({ onLogout, onBackToHome, onEditCard }
                     className="object-contain pointer-events-none"
                     style={{ 
                       width: '70px',
-                      height: '70px',
+                      height: '50px',
                       transform: 'rotate(-20deg)',
                       marginLeft: '-20px',
-                      marginTop: '2px'
+                      marginTop: '0px'
                     }}
                   />
                 </div>
@@ -89,7 +89,7 @@ export default function PersonalDashboard({ onLogout, onBackToHome, onEditCard }
             {/* User dropdown */}
             <div className="p-4 border-b border-white/10">
               <button className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-white/5 transition-all text-white">
-                <span className="font-medium">Người dùng</span>
+                <span className="font-medium">Personal</span>
                 <FontAwesomeIcon icon={faChevronDown} className="text-sm" />
               </button>
             </div>
@@ -195,7 +195,7 @@ export default function PersonalDashboard({ onLogout, onBackToHome, onEditCard }
                 {/* Personal tab */}
                 <div className="flex items-center gap-4">
                   <button className="px-4 py-2 text-white font-medium border-b-2 border-white">
-                    Personal
+                    Card Selection
                   </button>
                 </div>
 
