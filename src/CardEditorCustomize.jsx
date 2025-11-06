@@ -1,54 +1,68 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faChevronDown, 
   faChevronUp, 
   faImage, 
-  faPlus,
-  faTrash
+  faSave,
+  faCheck
 } from '@fortawesome/free-solid-svg-icons';
-import CardPreview from './CardPreview';
+import CardPreview from "./CardPreview";
+import ImageCropModal from "./ImageCropModal";
 
-export default function CardEditorCustomize({ onBack }) {
-  // Card data state - sẽ update real-time
-  const [cardData, setCardData] = useState({
-    name: 'Your name...',
-    title: '',
-    company: 'Example Co.',
-    phone: '123456789...',
-    email: 'hello@mailexample.com',
-    location: '123 Anywhere St., Any City, ST 12345',
-    website: 'www.reallygreatsite.com',
-    avatar: null,
-    brandPhoto: null,
-    theme: {
-      colors: ['#FFFFFF', '#FF6B5B', '#FFE5B4'], // 3 colors like in image
-      background: 'linear-gradient(135deg, #003540 0%, #004d5c 100%)'
-    },
-    socials: {
-      facebook: '',
-      linkedin: '',
-      github: '',
-      twitter: ''
+export default function CardEditor({ onBack }) {
+  const [cardData, setCardData] = useState(() => {
+    const saved = localStorage.getItem('cosma_card_data');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to load saved data');
+      }
     }
+    return {
+      name: '',
+      title: '',
+      company: '',
+      phone: '',
+      email: '',
+      location: '',
+      website: '',
+      avatar: null,
+      brandPhoto: null,
+      theme: {
+        colors: ['#667eea', '#764ba2', '#f093fb'],
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)'
+      },
+      socials: {
+        facebook: '',
+        linkedin: '',
+        github: '',
+        twitter: ''
+      }
+    };
   });
 
-  // Active tab state
-  const [activeTab, setActiveTab] = useState('customize'); // customize, design, qrcode
-
-  // Sections state (which sections are enabled)
+  const [activeTab, setActiveTab] = useState('customize');
   const [sections, setSections] = useState({
     profile: true,
     headingText: true,
     contactUs: true,
-    images: true,
     socialLinks: true
   });
+  const [expandedSection, setExpandedSection] = useState('profile');
+  const [saveStatus, setSaveStatus] = useState('');
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [cropModalImage, setCropModalImage] = useState(null);
+  const [cropModalType, setCropModalType] = useState(null);
 
-  // Expanded sections state (which accordion is open)
-  const [expandedSection, setExpandedSection] = useState(null);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      localStorage.setItem('cosma_card_data', JSON.stringify(cardData));
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [cardData]);
 
-  // Update card data
   const updateCardData = (field, value) => {
     setCardData(prev => ({
       ...prev,
@@ -56,7 +70,16 @@ export default function CardEditorCustomize({ onBack }) {
     }));
   };
 
-  // Toggle section enabled/disabled
+  const updateNestedField = (parent, field, value) => {
+    setCardData(prev => ({
+      ...prev,
+      [parent]: {
+        ...prev[parent],
+        [field]: value
+      }
+    }));
+  };
+
   const toggleSection = (sectionName) => {
     setSections(prev => ({
       ...prev,
@@ -64,72 +87,94 @@ export default function CardEditorCustomize({ onBack }) {
     }));
   };
 
-  // Toggle section expanded/collapsed
   const toggleExpanded = (sectionName) => {
     setExpandedSection(expandedSection === sectionName ? null : sectionName);
   };
 
-  // Handle avatar upload
   const handleAvatarUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File must be less than 5MB');
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
-        updateCardData('avatar', reader.result);
+        setCropModalImage(reader.result);
+        setCropModalType('avatar');
+        setShowCropModal(true);
       };
       reader.readAsDataURL(file);
     }
+    e.target.value = '';
   };
 
-  // Handle brand photo upload
   const handleBrandPhotoUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File must be less than 5MB');
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
-        updateCardData('brandPhoto', reader.result);
+        setCropModalImage(reader.result);
+        setCropModalType('logo');
+        setShowCropModal(true);
       };
       reader.readAsDataURL(file);
     }
+    e.target.value = '';
   };
 
-  // Handle theme color change
-  const handleColorChange = (index, color) => {
-    const newColors = [...cardData.theme.colors];
-    newColors[index] = color;
-    
-    // Update theme with new gradient
-    const newBackground = `linear-gradient(135deg, ${newColors[0]} 0%, ${newColors[1]} 50%, ${newColors[2]} 100%)`;
-    
+  const handleCropSave = (croppedImage) => {
+    if (cropModalType === 'avatar') {
+      updateCardData('avatar', croppedImage);
+    } else if (cropModalType === 'logo') {
+      updateCardData('brandPhoto', croppedImage);
+    }
+    setShowCropModal(false);
+  };
+
+  const applyPresetTheme = (colors) => {
     updateCardData('theme', {
-      ...cardData.theme,
-      colors: newColors,
-      background: newBackground
+      colors: colors,
+      background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%)`
     });
+  };
+
+  const handleSave = () => {
+    setSaveStatus('saving');
+    localStorage.setItem('cosma_card_data', JSON.stringify(cardData));
+    setTimeout(() => {
+      setSaveStatus('saved');
+      console.log('Card saved:', cardData);
+      setTimeout(() => {
+        setSaveStatus('');
+      }, 2000);
+    }, 500);
   };
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#003540' }}>
-      {/* Header */}
-      <header className="px-8 py-4 flex items-center justify-between border-b border-white/10">
-        {/* Logo & Back */}
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-white">
-            Cosma<span className="text-2xl">🚀</span>
+      {/* Header - COMPACT */}
+      <header className="px-6 py-3 flex items-center justify-between border-b border-white/10">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-bold text-white">
+            Cosma<span className="text-xl">🚀</span>
           </h1>
           <button
             onClick={onBack}
-            className="px-4 py-2 border-2 border-white text-white rounded-full text-sm font-medium hover:bg-white hover:text-[#003540] transition-all"
+            className="px-3 py-1.5 border-2 border-white text-white rounded-full text-sm font-medium hover:bg-white hover:text-[#003540] transition-all"
           >
             ← Back
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveTab('customize')}
-            className={`px-6 py-2 rounded-full font-medium transition-all ${
+            className={`px-5 py-1.5 rounded-full font-medium transition-all text-sm ${
               activeTab === 'customize'
                 ? 'bg-[#ffcb66] text-black'
                 : 'bg-transparent text-white border border-white/30 hover:bg-white/10'
@@ -137,10 +182,10 @@ export default function CardEditorCustomize({ onBack }) {
           >
             Customize
           </button>
-          <span className="text-white/50">→</span>
+          <span className="text-white/50 text-sm">→</span>
           <button
             onClick={() => setActiveTab('design')}
-            className={`px-6 py-2 rounded-full font-medium transition-all ${
+            className={`px-5 py-1.5 rounded-full font-medium transition-all text-sm ${
               activeTab === 'design'
                 ? 'bg-[#ffcb66] text-black'
                 : 'bg-transparent text-white border border-white/30 hover:bg-white/10'
@@ -148,89 +193,68 @@ export default function CardEditorCustomize({ onBack }) {
           >
             Design
           </button>
-          <span className="text-white/50">→</span>
+          <span className="text-white/50 text-sm">→</span>
           <button
             onClick={() => setActiveTab('qrcode')}
-            className={`px-6 py-2 rounded-full font-medium transition-all ${
+            className={`px-5 py-1.5 rounded-full font-medium transition-all text-sm ${
               activeTab === 'qrcode'
                 ? 'bg-[#ffcb66] text-black'
                 : 'bg-transparent text-white border border-white/30 hover:bg-white/10'
             }`}
           >
-            QRCode
+            QR Code
           </button>
         </div>
 
-        {/* Preset Themes */}
-        <div className="flex items-center gap-3">
-          {/* Quick Theme Presets */}
-          <div className="flex gap-3">
+        <div className="flex items-center gap-2">
+          <div className="flex gap-2">
             <button
-              onClick={() => {
-                const colors = ['#667eea', '#764ba2', '#f093fb'];
-                updateCardData('theme', {
-                  colors: colors,
-                  background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%)`
-                });
-              }}
-              className="w-12 h-12 rounded-xl shadow-lg hover:scale-110 transition-all border-2 border-white/30 hover:border-white/60"
+              onClick={() => applyPresetTheme(['#667eea', '#764ba2', '#f093fb'])}
+              className="w-10 h-10 rounded-lg shadow-lg hover:scale-110 transition-all border-2 border-white/30 hover:border-white/60"
               style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)' }}
               title="Purple Dream"
             />
             <button
-              onClick={() => {
-                const colors = ['#FF6B6B', '#FFA500', '#FFD700'];
-                updateCardData('theme', {
-                  colors: colors,
-                  background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%)`
-                });
-              }}
-              className="w-12 h-12 rounded-xl shadow-lg hover:scale-110 transition-all border-2 border-white/30 hover:border-white/60"
+              onClick={() => applyPresetTheme(['#FF6B6B', '#FFA500', '#FFD700'])}
+              className="w-10 h-10 rounded-lg shadow-lg hover:scale-110 transition-all border-2 border-white/30 hover:border-white/60"
               style={{ background: 'linear-gradient(135deg, #FF6B6B 0%, #FFA500 50%, #FFD700 100%)' }}
               title="Sunset Orange"
             />
             <button
-              onClick={() => {
-                const colors = ['#00C9FF', '#0084FF', '#667eea'];
-                updateCardData('theme', {
-                  colors: colors,
-                  background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%)`
-                });
-              }}
-              className="w-12 h-12 rounded-xl shadow-lg hover:scale-110 transition-all border-2 border-white/30 hover:border-white/60"
+              onClick={() => applyPresetTheme(['#00C9FF', '#0084FF', '#667eea'])}
+              className="w-10 h-10 rounded-lg shadow-lg hover:scale-110 transition-all border-2 border-white/30 hover:border-white/60"
               style={{ background: 'linear-gradient(135deg, #00C9FF 0%, #0084FF 50%, #667eea 100%)' }}
               title="Ocean Blue"
             />
+            <button
+              onClick={() => applyPresetTheme(['#34D399', '#10B981', '#059669'])}
+              className="w-10 h-10 rounded-lg shadow-lg hover:scale-110 transition-all border-2 border-white/30 hover:border-white/60"
+              style={{ background: 'linear-gradient(135deg, #34D399 0%, #10B981 50%, #059669 100%)' }}
+              title="Emerald Green"
+            />
           </div>
-          
-          {/* Arrow button */}
-          <button className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center text-white hover:bg-white/20 transition-all">
-            →
-          </button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="flex h-screen" style={{ height: 'calc(100vh - 80px)' }}>
-        {/* Left Panel - Editor */}
-        <div className="w-1/2 p-6 space-y-3 overflow-y-auto border-r border-white/10" style={{ backgroundColor: '#003540' }}>
+      {/* Main Content - COMPACT */}
+      <div className="flex h-screen" style={{ height: 'calc(100vh - 60px)' }}>
+        {/* Left Panel - COMPACT + HIDDEN SCROLLBAR */}
+        <div className="w-1/2 p-4 space-y-2.5 overflow-y-auto border-r border-white/10 custom-scrollbar">
           
-          {/* Profile Section */}
-          <div className="bg-gradient-to-r from-[#E8F5E8] to-[#D4E4F7] rounded-2xl overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4">
+          {/* Profile Section - COMPACT */}
+          <div className="bg-gradient-to-r from-[#E8F5E8] to-[#D4E4F7] rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3">
               <button
                 onClick={() => toggleExpanded('profile')}
                 className="flex items-center gap-3 flex-1"
               >
-                <span className="text-lg font-semibold text-gray-800">Profile</span>
+                <span className="text-base font-semibold text-gray-800">Profile</span>
                 <FontAwesomeIcon 
                   icon={expandedSection === 'profile' ? faChevronUp : faChevronDown} 
-                  className="text-gray-600"
+                  className="text-gray-600 text-sm"
                 />
               </button>
               
-              {/* Toggle Switch */}
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
@@ -242,23 +266,27 @@ export default function CardEditorCustomize({ onBack }) {
               </label>
             </div>
 
-            {/* Expanded Content */}
             {expandedSection === 'profile' && sections.profile && (
-              <div className="px-5 pb-5 space-y-4">
-                {/* Photo Uploads */}
-                <div className="flex gap-4">
-                  {/* Profile Photo */}
+              <div className="px-4 pb-4 space-y-3">
+                <div className="flex gap-3">
+                  {/* Avatar - COMPACT */}
                   <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Profile Photo
                     </label>
-                    <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-400 rounded-lg cursor-pointer bg-white/50 hover:bg-white/70 transition-all">
+                    <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-400 rounded-lg cursor-pointer bg-white/50 hover:bg-white/70 transition-all overflow-hidden group">
                       {cardData.avatar ? (
-                        <img src={cardData.avatar} alt="Avatar" className="w-full h-full object-cover rounded-lg" />
+                        <div className="relative w-full h-full">
+                          <img src={cardData.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
+                            <span className="text-white text-xs font-medium">Click to change</span>
+                          </div>
+                        </div>
                       ) : (
                         <div className="flex flex-col items-center">
-                          <FontAwesomeIcon icon={faImage} className="text-2xl text-gray-400 mb-1" />
-                          <span className="text-xs text-gray-500">Upload</span>
+                          <FontAwesomeIcon icon={faImage} className="text-2xl text-gray-400 mb-1.5" />
+                          <span className="text-xs text-gray-500">Click to upload</span>
+                          <span className="text-[10px] text-gray-400 mt-0.5">Crop & adjust</span>
                         </div>
                       )}
                       <input
@@ -268,20 +296,34 @@ export default function CardEditorCustomize({ onBack }) {
                         className="hidden"
                       />
                     </label>
+                    {cardData.avatar && (
+                      <button
+                        onClick={() => updateCardData('avatar', null)}
+                        className="mt-1.5 w-full text-[10px] text-red-600 hover:text-red-800 font-medium"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
 
-                  {/* Brand Photo */}
+                  {/* Brand Photo - COMPACT */}
                   <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Brand Photo
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                      Brand Logo
                     </label>
-                    <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-400 rounded-lg cursor-pointer bg-white/50 hover:bg-white/70 transition-all">
+                    <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-400 rounded-lg cursor-pointer bg-white/50 hover:bg-white/70 transition-all overflow-hidden group">
                       {cardData.brandPhoto ? (
-                        <img src={cardData.brandPhoto} alt="Brand" className="w-full h-full object-cover rounded-lg" />
+                        <div className="relative w-full h-full">
+                          <img src={cardData.brandPhoto} alt="Brand" className="w-full h-full object-contain p-2" />
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
+                            <span className="text-white text-xs font-medium">Click to change</span>
+                          </div>
+                        </div>
                       ) : (
                         <div className="flex flex-col items-center">
-                          <FontAwesomeIcon icon={faImage} className="text-2xl text-gray-400 mb-1" />
-                          <span className="text-xs text-gray-500">Upload</span>
+                          <FontAwesomeIcon icon={faImage} className="text-2xl text-gray-400 mb-1.5" />
+                          <span className="text-xs text-gray-500">Click to upload</span>
+                          <span className="text-[10px] text-gray-400 mt-0.5">Auto remove BG</span>
                         </div>
                       )}
                       <input
@@ -291,77 +333,73 @@ export default function CardEditorCustomize({ onBack }) {
                         className="hidden"
                       />
                     </label>
+                    {cardData.brandPhoto && (
+                      <button
+                        onClick={() => updateCardData('brandPhoto', null)}
+                        className="mt-1.5 w-full text-[10px] text-red-600 hover:text-red-800 font-medium"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {/* Name Field */}
+                {/* Name - COMPACT */}
                 <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <label className="px-3 py-1 bg-white rounded-lg text-sm font-medium text-gray-700">
-                      Name
-                    </label>
-                  </div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Full Name *
+                  </label>
                   <input
                     type="text"
                     value={cardData.name}
                     onChange={(e) => updateCardData('name', e.target.value)}
-                    placeholder="your name..."
-                    className="w-full px-4 py-3 bg-white/80 rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] transition-all"
+                    placeholder="John Doe"
+                    className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
                   />
                 </div>
 
-                {/* Telephone Field */}
+                {/* Email - COMPACT */}
                 <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <label className="px-3 py-1 bg-white rounded-lg text-sm font-medium text-gray-700">
-                      Telephone
-                    </label>
-                  </div>
-                  <input
-                    type="tel"
-                    value={cardData.phone}
-                    onChange={(e) => updateCardData('phone', e.target.value)}
-                    placeholder="123456789..."
-                    className="w-full px-4 py-3 bg-white/80 rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] transition-all"
-                  />
-                </div>
-
-                {/* Email Field */}
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <label className="px-3 py-1 bg-white rounded-lg text-sm font-medium text-gray-700">
-                      Email
-                    </label>
-                  </div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Email *
+                  </label>
                   <input
                     type="email"
                     value={cardData.email}
                     onChange={(e) => updateCardData('email', e.target.value)}
-                    placeholder="example@..."
-                    className="w-full px-4 py-3 bg-white/80 rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] transition-all"
+                    placeholder="john@example.com"
+                    className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
                   />
                 </div>
 
-                {/* Add More Button */}
-                <button className="w-full py-3 bg-white rounded-lg border-2 border-dashed border-gray-400 text-gray-700 font-medium hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
-                  <FontAwesomeIcon icon={faPlus} />
-                  <span>add more +</span>
-                </button>
+                {/* Phone - COMPACT */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    value={cardData.phone}
+                    onChange={(e) => updateCardData('phone', e.target.value)}
+                    placeholder="+84 123 456 789"
+                    className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
+                  />
+                </div>
               </div>
             )}
           </div>
 
-          {/* Heading + Text Section */}
-          <div className="bg-gradient-to-r from-[#E8F5E8] to-[#D4E4F7] rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4">
+          {/* Heading + Text - COMPACT */}
+          <div className="bg-gradient-to-r from-[#E8F5E8] to-[#D4E4F7] rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3">
               <button
                 onClick={() => toggleExpanded('headingText')}
                 className="flex items-center gap-3 flex-1"
               >
-                <span className="text-lg font-semibold text-gray-800">Heading + Text</span>
+                <span className="text-base font-semibold text-gray-800">Heading + Text</span>
                 <FontAwesomeIcon 
                   icon={expandedSection === 'headingText' ? faChevronUp : faChevronDown} 
-                  className="text-gray-600"
+                  className="text-gray-600 text-sm"
                 />
               </button>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -375,36 +413,46 @@ export default function CardEditorCustomize({ onBack }) {
               </label>
             </div>
             {expandedSection === 'headingText' && sections.headingText && (
-              <div className="px-5 pb-5 space-y-4">
-                <input
-                  type="text"
-                  value={cardData.title}
-                  onChange={(e) => updateCardData('title', e.target.value)}
-                  placeholder="Your title..."
-                  className="w-full px-4 py-3 bg-white/80 rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66]"
-                />
-                <input
-                  type="text"
-                  value={cardData.company}
-                  onChange={(e) => updateCardData('company', e.target.value)}
-                  placeholder="Company name..."
-                  className="w-full px-4 py-3 bg-white/80 rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66]"
-                />
+              <div className="px-4 pb-4 space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Job Title
+                  </label>
+                  <input
+                    type="text"
+                    value={cardData.title}
+                    onChange={(e) => updateCardData('title', e.target.value)}
+                    placeholder="Full Stack Developer"
+                    className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Company
+                  </label>
+                  <input
+                    type="text"
+                    value={cardData.company}
+                    onChange={(e) => updateCardData('company', e.target.value)}
+                    placeholder="Cosma Tech"
+                    className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
+                  />
+                </div>
               </div>
             )}
           </div>
 
-          {/* Contact Us Section */}
-          <div className="bg-gradient-to-r from-[#E8F5E8] to-[#D4E4F7] rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4">
+          {/* Contact Us - COMPACT */}
+          <div className="bg-gradient-to-r from-[#E8F5E8] to-[#D4E4F7] rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3">
               <button
                 onClick={() => toggleExpanded('contactUs')}
                 className="flex items-center gap-3 flex-1"
               >
-                <span className="text-lg font-semibold text-gray-800">Contact Us</span>
+                <span className="text-base font-semibold text-gray-800">Contact Us</span>
                 <FontAwesomeIcon 
                   icon={expandedSection === 'contactUs' ? faChevronUp : faChevronDown} 
-                  className="text-gray-600"
+                  className="text-gray-600 text-sm"
                 />
               </button>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -418,66 +466,46 @@ export default function CardEditorCustomize({ onBack }) {
               </label>
             </div>
             {expandedSection === 'contactUs' && sections.contactUs && (
-              <div className="px-5 pb-5 space-y-4">
-                <input
-                  type="text"
-                  value={cardData.location}
-                  onChange={(e) => updateCardData('location', e.target.value)}
-                  placeholder="Location..."
-                  className="w-full px-4 py-3 bg-white/80 rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66]"
-                />
-                <input
-                  type="text"
-                  value={cardData.website}
-                  onChange={(e) => updateCardData('website', e.target.value)}
-                  placeholder="Website..."
-                  className="w-full px-4 py-3 bg-white/80 rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66]"
-                />
+              <div className="px-4 pb-4 space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    value={cardData.location}
+                    onChange={(e) => updateCardData('location', e.target.value)}
+                    placeholder="Ho Chi Minh City, Vietnam"
+                    className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Website
+                  </label>
+                  <input
+                    type="text"
+                    value={cardData.website}
+                    onChange={(e) => updateCardData('website', e.target.value)}
+                    placeholder="www.example.com"
+                    className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
+                  />
+                </div>
               </div>
             )}
           </div>
 
-          {/* Images Section */}
-          <div className="bg-gradient-to-r from-[#E8F5E8] to-[#D4E4F7] rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4">
-              <button
-                onClick={() => toggleExpanded('images')}
-                className="flex items-center gap-3 flex-1"
-              >
-                <span className="text-lg font-semibold text-gray-800">Images</span>
-                <FontAwesomeIcon 
-                  icon={expandedSection === 'images' ? faChevronUp : faChevronDown} 
-                  className="text-gray-600"
-                />
-              </button>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={sections.images}
-                  onChange={() => toggleSection('images')}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ffcb66]"></div>
-              </label>
-            </div>
-            {expandedSection === 'images' && sections.images && (
-              <div className="px-5 pb-5">
-                <p className="text-gray-600 text-sm">Upload gallery images (Coming soon)</p>
-              </div>
-            )}
-          </div>
-
-          {/* Social Links Section */}
-          <div className="bg-gradient-to-r from-[#E8F5E8] to-[#D4E4F7] rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4">
+          {/* Social Links - COMPACT */}
+          <div className="bg-gradient-to-r from-[#E8F5E8] to-[#D4E4F7] rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3">
               <button
                 onClick={() => toggleExpanded('socialLinks')}
                 className="flex items-center gap-3 flex-1"
               >
-                <span className="text-lg font-semibold text-gray-800">Social Links</span>
+                <span className="text-base font-semibold text-gray-800">Social Links</span>
                 <FontAwesomeIcon 
                   icon={expandedSection === 'socialLinks' ? faChevronUp : faChevronDown} 
-                  className="text-gray-600"
+                  className="text-gray-600 text-sm"
                 />
               </button>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -491,34 +519,34 @@ export default function CardEditorCustomize({ onBack }) {
               </label>
             </div>
             {expandedSection === 'socialLinks' && sections.socialLinks && (
-              <div className="px-5 pb-5 space-y-3">
+              <div className="px-4 pb-4 space-y-2.5">
                 <input
                   type="url"
                   value={cardData.socials.facebook}
-                  onChange={(e) => updateCardData('socials', { ...cardData.socials, facebook: e.target.value })}
-                  placeholder="Facebook URL..."
-                  className="w-full px-4 py-3 bg-white/80 rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66]"
+                  onChange={(e) => updateNestedField('socials', 'facebook', e.target.value)}
+                  placeholder="https://facebook.com/yourprofile"
+                  className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
                 />
                 <input
                   type="url"
                   value={cardData.socials.linkedin}
-                  onChange={(e) => updateCardData('socials', { ...cardData.socials, linkedin: e.target.value })}
-                  placeholder="LinkedIn URL..."
-                  className="w-full px-4 py-3 bg-white/80 rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66]"
+                  onChange={(e) => updateNestedField('socials', 'linkedin', e.target.value)}
+                  placeholder="https://linkedin.com/in/yourprofile"
+                  className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
                 />
                 <input
                   type="url"
                   value={cardData.socials.github}
-                  onChange={(e) => updateCardData('socials', { ...cardData.socials, github: e.target.value })}
-                  placeholder="GitHub URL..."
-                  className="w-full px-4 py-3 bg-white/80 rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66]"
+                  onChange={(e) => updateNestedField('socials', 'github', e.target.value)}
+                  placeholder="https://github.com/yourprofile"
+                  className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
                 />
                 <input
                   type="url"
                   value={cardData.socials.twitter}
-                  onChange={(e) => updateCardData('socials', { ...cardData.socials, twitter: e.target.value })}
-                  placeholder="Twitter URL..."
-                  className="w-full px-4 py-3 bg-white/80 rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66]"
+                  onChange={(e) => updateNestedField('socials', 'twitter', e.target.value)}
+                  placeholder="https://twitter.com/yourprofile"
+                  className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
                 />
               </div>
             )}
@@ -526,28 +554,41 @@ export default function CardEditorCustomize({ onBack }) {
 
         </div>
 
-        {/* Right Panel - Live Preview */}
-        <div className="w-1/2 flex flex-col" style={{ backgroundColor: '#004d5c', minHeight: 'calc(100vh - 80px)' }}>
-          {/* Preview Title */}
-          <div className="p-6 border-b border-white/10">
-            <h3 className="text-white text-lg font-semibold text-center">Live Preview</h3>
+        {/* Right Panel - COMPACT + HIDDEN SCROLLBAR */}
+        <div className="w-1/2 flex flex-col" style={{ backgroundColor: '#004d5c' }}>
+          <div className="p-4 border-b border-white/10">
+            <h3 className="text-white text-base font-semibold text-center">Live Preview</h3>
           </div>
           
-          {/* Preview Content - Centered */}
-          <div className="flex-1 flex items-center justify-center p-6 overflow-auto">
-            <div className="w-full max-w-2xl">
-              <CardPreview cardData={cardData} />
-            </div>
+          <div className="flex-1 flex items-center justify-center p-4 overflow-auto custom-scrollbar">
+            <CardPreview cardData={cardData} />
           </div>
           
-          {/* Save Button - Fixed at bottom */}
-          <div className="p-6 border-t border-white/10 flex justify-center">
-            <button className="px-10 py-3 bg-[#ffcb66] text-black rounded-lg font-semibold hover:scale-105 transition-all shadow-lg">
-              Save
+          <div className="p-4 border-t border-white/10 flex justify-center">
+            <button 
+              onClick={handleSave}
+              disabled={saveStatus === 'saving'}
+              className="px-8 py-2.5 bg-[#ffcb66] text-black rounded-lg font-semibold hover:scale-105 transition-all shadow-lg flex items-center gap-2 disabled:opacity-50 text-sm"
+            >
+              {saveStatus === 'saving' && <span className="animate-spin">⏳</span>}
+              {saveStatus === 'saved' && <FontAwesomeIcon icon={faCheck} />}
+              {saveStatus === '' && <FontAwesomeIcon icon={faSave} />}
+              {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save'}
             </button>
           </div>
         </div>
       </div>
+
+      {showCropModal && (
+        <ImageCropModal
+          image={cropModalImage}
+          onClose={() => setShowCropModal(false)}
+          onSave={handleCropSave}
+          aspectRatio={cropModalType === 'avatar' ? 1 : 1}
+          cropShape={cropModalType === 'avatar' ? 'round' : 'rect'}
+          showBackgroundRemoval={cropModalType === 'logo'}
+        />
+      )}
     </div>
   );
 }
