@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faIdCard, 
@@ -10,46 +10,155 @@ import {
   faQrcode,
   faEye,
   faChevronDown,
-  faBars
+  faBars,
+  faCheck
 } from '@fortawesome/free-solid-svg-icons';
 import CardPreview from './CardPreview';
+import QRCodeDisplay from './QRCodeDisplay';
 
 export default function PersonalDashboard({ onLogout, onBackToHome, onEditCard }) {
   const [selectedMenu, setSelectedMenu] = useState('cards');
-  const [activeTab, setActiveTab] = useState('cardview'); // 'cardview' or 'qrcode'
-  const [selectedCard, setSelectedCard] = useState(null);
+  const [activeTab, setActiveTab] = useState('cardview');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  // Mock data - sau này sẽ lấy từ API
-  const [cards, setCards] = useState([
-    {
-      id: 1,
-      name: 'Personal',
-      type: 'personal',
-      theme: 'gradient',
-      isActive: true
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // Cards state - load from localStorage
+  const [cards, setCards] = useState(() => {
+    const saved = localStorage.getItem('cosma_all_cards');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.length > 0 ? parsed : [createDefaultCard()];
+      } catch (e) {
+        return [createDefaultCard()];
+      }
     }
-  ]);
+    return [createDefaultCard()];
+  });
+
+  const [selectedCardId, setSelectedCardId] = useState(() => {
+    return cards[0]?.id || null;
+  });
+
+  // Reload cards when refreshTrigger changes
+  useEffect(() => {
+    const saved = localStorage.getItem('cosma_all_cards');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setCards(parsed);
+      } catch (e) {
+        console.error('Failed to reload cards');
+      }
+    }
+  }, [refreshTrigger]);
+
+  // Reload cards when component mounts or becomes visible (after editing)
+  useEffect(() => {
+    const reloadCards = () => {
+      setRefreshTrigger(prev => prev + 1);
+    };
+
+    // Reload when window gets focus (coming back from editor)
+    window.addEventListener('focus', reloadCards);
+    
+    // Also reload on visibility change
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        reloadCards();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('focus', reloadCards);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  // Save cards to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('cosma_all_cards', JSON.stringify(cards));
+  }, [cards]);
+
+  // Load selected card data to main editor storage
+  useEffect(() => {
+    const selectedCard = cards.find(c => c.id === selectedCardId);
+    if (selectedCard) {
+      localStorage.setItem('cosma_card_data', JSON.stringify(selectedCard.data));
+      // Also save the card ID so editor knows which card to update
+      localStorage.setItem('cosma_current_card_id', selectedCardId.toString());
+    }
+  }, [selectedCardId, cards]);
+
+  // Create default empty card
+  function createDefaultCard() {
+    return {
+      id: Date.now(),
+      name: 'Untitled Card',
+      data: {
+        name: '',
+        title: '',
+        company: '',
+        phone: '',
+        email: '',
+        location: '',
+        website: '',
+        avatar: null,
+        brandPhoto: null,
+        theme: 'classic',
+        sticker: null,
+        colorTheme: { id: 'default', name: 'Teal Classic', primary: '#00343d', accent: '#3b82f6' },
+        fontStyle: { id: 'default', name: 'Default', family: 'system-ui, -apple-system, sans-serif' },
+        socials: {
+          facebook: '',
+          linkedin: '',
+          github: '',
+          twitter: ''
+        }
+      },
+      createdAt: new Date().toISOString()
+    };
+  }
 
   const handleCreateCard = () => {
-    alert('Chức năng tạo card mới - Coming soon!');
+    const newCard = createDefaultCard();
+    setCards(prev => [...prev, newCard]);
+    setSelectedCardId(newCard.id);
+  };
+
+  const handleSelectCard = (cardId) => {
+    setSelectedCardId(cardId);
   };
 
   const handleEditCard = () => {
     if (onEditCard) {
+      // Save current card ID for editor
+      localStorage.setItem('cosma_editing_card_id', selectedCardId.toString());
       onEditCard();
     }
   };
 
   const handleDeleteCard = () => {
+    if (cards.length === 1) {
+      alert('Bạn phải có ít nhất 1 card!');
+      return;
+    }
+
     if (confirm('Bạn có chắc muốn xóa card này?')) {
-      alert('Đã xóa card!');
+      const remainingCards = cards.filter(c => c.id !== selectedCardId);
+      setCards(remainingCards);
+      // Select first remaining card
+      setSelectedCardId(remainingCards[0].id);
     }
   };
 
   const handleShareCard = () => {
     alert('Chức năng share card - Coming soon!');
   };
+
+  // Get currently selected card
+  const selectedCard = cards.find(c => c.id === selectedCardId);
 
   return (
     <div className="min-h-screen flex" style={{ backgroundColor: '#00343d' }}>
@@ -154,7 +263,7 @@ export default function PersonalDashboard({ onLogout, onBackToHome, onEditCard }
               )}
             </div>
 
-            {/* Right side buttons - Move Edit and Delete here */}
+            {/* Right side buttons */}
             <div className="flex items-center gap-3">
               {selectedMenu === 'cards' && (
                 <>
@@ -167,7 +276,12 @@ export default function PersonalDashboard({ onLogout, onBackToHome, onEditCard }
                   </button>
                   <button
                     onClick={handleDeleteCard}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-white/20 text-white hover:bg-white/5 transition-all"
+                    disabled={cards.length === 1}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border border-white/20 text-white transition-all ${
+                      cards.length === 1 
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'hover:bg-red-500/10 hover:border-red-500'
+                    }`}
                   >
                     <FontAwesomeIcon icon={faTrash} />
                     <span>Delete</span>
@@ -187,65 +301,105 @@ export default function PersonalDashboard({ onLogout, onBackToHome, onEditCard }
         </header>
 
         {/* Content area */}
-        <div className="flex-1 p-6 overflow-auto">
+        <div className="flex-1 flex overflow-hidden">
           {selectedMenu === 'cards' ? (
-            <div className="h-full">
-              {/* Card types tabs and View toggle in one row */}
-              <div className="mb-4 flex items-center justify-between">
-                {/* Personal tab */}
-                <div className="flex items-center gap-4">
-                  <button className="px-4 py-2 text-white font-medium border-b-2 border-white">
-                    Card Selection
-                  </button>
-                </div>
-
-                {/* Card view / QR code tabs */}
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setActiveTab('cardview')}
-                    className={`px-4 py-2 font-medium transition-all ${
-                      activeTab === 'cardview'
-                        ? 'text-white border-b-2 border-white'
-                        : 'text-white/50 hover:text-white'
-                    }`}
-                  >
-                    <FontAwesomeIcon icon={faEye} className="mr-2" />
-                    Card view
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('qrcode')}
-                    className={`px-4 py-2 font-medium transition-all ${
-                      activeTab === 'qrcode'
-                        ? 'text-white border-b-2 border-white'
-                        : 'text-white/50 hover:text-white'
-                    }`}
-                  >
-                    <FontAwesomeIcon icon={faQrcode} className="mr-2" />
-                    QR Code
-                  </button>
+            <>
+              {/* Left side - Card Selection (vertical list) */}
+              <div className="w-80 border-r border-white/10 p-4 overflow-y-auto" style={{ backgroundColor: '#003540' }}>
+                <h3 className="text-white font-semibold mb-4 text-sm uppercase tracking-wider">
+                  Card Selection ({cards.length})
+                </h3>
+                
+                <div className="space-y-3">
+                  {cards.map((card, index) => (
+                    <button
+                      key={card.id}
+                      onClick={() => handleSelectCard(card.id)}
+                      className={`w-full text-left p-4 rounded-xl transition-all border-2 ${
+                        selectedCardId === card.id
+                          ? 'bg-[#ffcb66] border-[#ffcb66] text-black'
+                          : 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <FontAwesomeIcon icon={faIdCard} className="text-sm" />
+                            <span className="font-bold text-sm">
+                              {card.data.name || card.name}
+                            </span>
+                          </div>
+                          {card.data.title && (
+                            <p className="text-xs opacity-75 mb-1">{card.data.title}</p>
+                          )}
+                          {card.data.company && (
+                            <p className="text-xs opacity-60">{card.data.company}</p>
+                          )}
+                        </div>
+                        {selectedCardId === card.id && (
+                          <div className="w-6 h-6 rounded-full bg-black/20 flex items-center justify-center flex-shrink-0">
+                            <FontAwesomeIcon icon={faCheck} className="text-xs" />
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center justify-between text-xs opacity-60 mt-2 pt-2 border-t border-current/20">
+                        <span>Theme: {card.data.theme}</span>
+                        <span>#{index + 1}</span>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Card preview area - centered with reduced top margin */}
-              <div className="flex justify-center items-start pt-4">
-                {activeTab === 'cardview' ? (
-                  <CardPreview />
-                ) : (
-                  <div className="w-80 h-80 bg-white rounded-2xl flex items-center justify-center">
-                    <div className="text-center">
-                      <FontAwesomeIcon icon={faQrcode} className="text-6xl text-gray-400 mb-4" />
-                      <p className="text-gray-600">QR Code will appear here</p>
-                    </div>
+              {/* Right side - Card Preview */}
+              <div className="flex-1 overflow-auto">
+                <div className="p-6">
+                  {/* Card view / QR code tabs */}
+                  <div className="flex items-center justify-end gap-4 mb-6">
+                    <button
+                      onClick={() => setActiveTab('cardview')}
+                      className={`px-4 py-2 font-medium transition-all ${
+                        activeTab === 'cardview'
+                          ? 'text-white border-b-2 border-white'
+                          : 'text-white/50 hover:text-white'
+                      }`}
+                    >
+                      <FontAwesomeIcon icon={faEye} className="mr-2" />
+                      Card view
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('qrcode')}
+                      className={`px-4 py-2 font-medium transition-all ${
+                        activeTab === 'qrcode'
+                          ? 'text-white border-b-2 border-white'
+                          : 'text-white/50 hover:text-white'
+                      }`}
+                    >
+                      <FontAwesomeIcon icon={faQrcode} className="mr-2" />
+                      QR Code
+                    </button>
                   </div>
-                )}
+
+                  {/* Card preview area - centered */}
+                  <div className="flex justify-center items-start pt-4">
+                    {activeTab === 'cardview' ? (
+                      <CardPreview cardData={selectedCard?.data} />
+                    ) : (
+                      <QRCodeDisplay cardData={selectedCard?.data} />
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
+            </>
           ) : (
             // Contacts view
-            <div className="text-center text-white py-20">
-              <FontAwesomeIcon icon={faAddressBook} className="text-6xl mb-4 opacity-50" />
-              <h3 className="text-2xl font-bold mb-2">Contacts</h3>
-              <p className="text-white/70">Quản lý danh bạ của bạn - Coming soon!</p>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center text-white">
+                <FontAwesomeIcon icon={faAddressBook} className="text-6xl mb-4 opacity-50" />
+                <h3 className="text-2xl font-bold mb-2">Contacts</h3>
+                <p className="text-white/70">Quản lý danh bạ của bạn - Coming soon!</p>
+              </div>
             </div>
           )}
         </div>

@@ -10,6 +10,8 @@ import {
 import CardPreview from "./CardPreview";
 import ImageCropModal from "./ImageCropModal";
 import DesignTab from "./DesignTab";
+import QRTab from "./QRTab";
+import QRPreview from "./QRPreview";
 
 export default function CardEditor({ onBack }) {
   const [cardData, setCardData] = useState(() => {
@@ -35,6 +37,11 @@ export default function CardEditor({ onBack }) {
       sticker: null,
       colorTheme: { id: 'default', name: 'Teal Classic', primary: '#00343d', accent: '#3b82f6' },
       fontStyle: { id: 'default', name: 'Default', family: 'system-ui, -apple-system, sans-serif' },
+      // QR Code customization fields
+      qrShape: 'none',
+      qrSticker: 'none',
+      qrCenterIcon: null,
+      qrLogo: null,
       socials: {
         facebook: '',
         linkedin: '',
@@ -139,7 +146,26 @@ export default function CardEditor({ onBack }) {
 
   const handleSave = () => {
     setSaveStatus('saving');
+    
+    // Save to main card data
     localStorage.setItem('cosma_card_data', JSON.stringify(cardData));
+    
+    // Also update the card in the all cards list
+    const currentCardId = localStorage.getItem('cosma_current_card_id');
+    if (currentCardId) {
+      const allCards = JSON.parse(localStorage.getItem('cosma_all_cards') || '[]');
+      const cardIndex = allCards.findIndex(c => c.id === parseInt(currentCardId));
+      
+      if (cardIndex !== -1) {
+        allCards[cardIndex].data = cardData;
+        // Update card name from data if available
+        if (cardData.name) {
+          allCards[cardIndex].name = cardData.name;
+        }
+        localStorage.setItem('cosma_all_cards', JSON.stringify(allCards));
+      }
+    }
+    
     setTimeout(() => {
       setSaveStatus('saved');
       console.log('Card saved:', cardData);
@@ -301,11 +327,13 @@ export default function CardEditor({ onBack }) {
 
       {/* Main Content */}
       <div className="flex h-screen" style={{ height: 'calc(100vh - 60px)' }}>
-        {/* Left Panel - Form sections or Design Tab */}
+        {/* Left Panel - Form sections or Design Tab or QR Tab */}
         <div className="w-1/2 p-4 space-y-2.5 overflow-y-auto border-r border-white/10 custom-scrollbar">
           
           {activeTab === 'design' ? (
             <DesignTab cardData={cardData} updateCardData={updateCardData} />
+          ) : activeTab === 'qrcode' ? (
+            <QRTab cardData={cardData} updateCardData={updateCardData} />
           ) : activeTab === 'customize' ? (
             <>
           {/* Profile Section */}
@@ -476,13 +504,6 @@ export default function CardEditor({ onBack }) {
           </div>
 
             </>
-          ) : activeTab === 'qrcode' ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center text-white">
-                <h3 className="text-xl font-bold mb-2">QR Code Generator</h3>
-                <p className="text-sm opacity-75">Coming soon...</p>
-              </div>
-            </div>
           ) : null}
 
         </div>
@@ -494,7 +515,11 @@ export default function CardEditor({ onBack }) {
           </div>
           
           <div className="flex-1 flex items-center justify-center p-4 overflow-auto custom-scrollbar">
-            <CardPreview cardData={cardData} />
+            {activeTab === 'qrcode' ? (
+              <QRPreview cardData={cardData} />
+            ) : (
+              <CardPreview cardData={cardData} />
+            )}
           </div>
           
           <div className="p-4 border-t border-white/10 flex justify-center">
