@@ -1,7 +1,7 @@
 // src/utils/imageUtils.js
 
 /**
- * Create image element from URL
+ * Create image from data URL
  */
 const createImage = (url) =>
   new Promise((resolve, reject) => {
@@ -13,183 +13,217 @@ const createImage = (url) =>
   });
 
 /**
- * Get radians from degrees
+ * Crop image based on cropped area pixels
  */
-function getRadianAngle(degreeValue) {
-  return (degreeValue * Math.PI) / 180;
-}
-
-/**
- * Returns the new bounding area of a rotated rectangle.
- */
-function rotateSize(width, height, rotation) {
-  const rotRad = getRadianAngle(rotation);
-
-  return {
-    width:
-      Math.abs(Math.cos(rotRad) * width) + Math.abs(Math.sin(rotRad) * height),
-    height:
-      Math.abs(Math.sin(rotRad) * width) + Math.abs(Math.cos(rotRad) * height),
-  };
-}
-
-/**
- * Crop image theo vùng đã chọn
- * @param {string} imageSrc - Base64 hoặc URL của ảnh
- * @param {Object} pixelCrop - Vùng crop {x, y, width, height}
- * @param {number} rotation - Góc xoay (degrees)
- * @returns {Promise<string>} Base64 của ảnh đã crop
- */
-export async function getCroppedImg(
-  imageSrc,
-  pixelCrop,
-  rotation = 0,
-  flip = { horizontal: false, vertical: false }
-) {
+export async function getCroppedImg(imageSrc, pixelCrop, rotation = 0) {
   const image = await createImage(imageSrc);
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
 
-  if (!ctx) {
-    return null;
-  }
+  const maxSize = Math.max(image.width, image.height);
+  const safeArea = 2 * ((maxSize / 2) * Math.sqrt(2));
 
-  const rotRad = getRadianAngle(rotation);
+  canvas.width = safeArea;
+  canvas.height = safeArea;
 
-  // Calculate bounding box of the rotated image
-  const { width: bBoxWidth, height: bBoxHeight } = rotateSize(
-    image.width,
-    image.height,
-    rotation
+  ctx.translate(safeArea / 2, safeArea / 2);
+  ctx.rotate((rotation * Math.PI) / 180);
+  ctx.translate(-safeArea / 2, -safeArea / 2);
+
+  ctx.drawImage(
+    image,
+    safeArea / 2 - image.width * 0.5,
+    safeArea / 2 - image.height * 0.5
   );
 
-  // Set canvas size to match the bounding box
-  canvas.width = bBoxWidth;
-  canvas.height = bBoxHeight;
+  const data = ctx.getImageData(0, 0, safeArea, safeArea);
 
-  // Translate canvas context to a central location to allow rotating and flipping around the center
-  ctx.translate(bBoxWidth / 2, bBoxHeight / 2);
-  ctx.rotate(rotRad);
-  ctx.scale(flip.horizontal ? -1 : 1, flip.vertical ? -1 : 1);
-  ctx.translate(-image.width / 2, -image.height / 2);
-
-  // Draw rotated image
-  ctx.drawImage(image, 0, 0);
-
-  // croppedAreaPixels values are bounding box relative
-  // extract the cropped image using these values
-  const data = ctx.getImageData(
-    pixelCrop.x,
-    pixelCrop.y,
-    pixelCrop.width,
-    pixelCrop.height
-  );
-
-  // Set canvas width to final desired crop size - this will clear existing context
   canvas.width = pixelCrop.width;
   canvas.height = pixelCrop.height;
 
-  // Paste generated rotate image at the top left corner
-  ctx.putImageData(data, 0, 0);
+  ctx.putImageData(
+    data,
+    Math.round(0 - safeArea / 2 + image.width * 0.5 - pixelCrop.x),
+    Math.round(0 - safeArea / 2 + image.height * 0.5 - pixelCrop.y)
+  );
 
-  // As Base64 string
   return canvas.toDataURL('image/png');
 }
 
 /**
- * Remove background dựa trên màu - IMPROVED VERSION
- * Thuật toán: Detect solid color backgrounds (white, light gray, etc.)
- * @param {string} imageSrc - Base64 của ảnh
- * @param {number} threshold - Ngưỡng brightness (0-255), cao hơn = remove nhiều hơn
- * @returns {Promise<string>} Base64 của ảnh đã remove background
+ * Advanced background removal with better edge detection
+ * @param {string} imageSrc - Base64 image data
+ * @param {number} threshold - Sensitivity (150-250, default 220)
+ * @returns {Promise<string>} - Base64 image with transparent background
  */
-export async function removeImageBackground(imageSrc, threshold = 200) {
+export async function removeImageBackground(imageSrc, threshold = 220) {
   const image = await createImage(imageSrc);
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
 
-  if (!ctx) {
-    return imageSrc;
-  }
-
   canvas.width = image.width;
   canvas.height = image.height;
 
+  // Draw image
   ctx.drawImage(image, 0, 0);
 
+  // Get image data
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imageData.data;
 
-  // Loop qua từng pixel
+  // Analyze corners to determine background color (improved algorithm)
+  const cornerSamples = [
+    // Top-left corner (larger sample area)
+    ...getAreaSamples(data, canvas.width, 0, 0, 20, 20),
+    // Top-right corner
+    ...getAreaSamples(data, canvas.width, canvas.width - 20, 0, 20, 20),
+    // Bottom-left corner
+    ...getAreaSamples(data, canvas.width, 0, canvas.height - 20, 20, 20),
+    // Bottom-right corner
+    ...getAreaSamples(data, canvas.width, canvas.width - 20, canvas.height - 20, 20, 20),
+  ];
+
+  // Calculate average background color
+  const avgBg = calculateAverageColor(cornerSamples);
+
+  // Process each pixel
   for (let i = 0; i < data.length; i += 4) {
-    const red = data[i];
-    const green = data[i + 1];
-    const blue = data[i + 2];
-    const alpha = data[i + 3];
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
 
-    // Skip nếu đã trong suốt
-    if (alpha === 0) continue;
+    // Calculate color difference from background
+    const diff = Math.sqrt(
+      Math.pow(r - avgBg.r, 2) +
+      Math.pow(g - avgBg.g, 2) +
+      Math.pow(b - avgBg.b, 2)
+    );
 
-    // Calculate brightness (weighted for human perception)
-    const brightness = (red * 0.299 + green * 0.587 + blue * 0.114);
-
-    // Calculate color variance (để detect solid color)
-    const colorVariance = 
-      Math.abs(red - green) + 
-      Math.abs(green - blue) + 
-      Math.abs(blue - red);
-
-    // Detect white/light backgrounds with improved logic
-    const isLikelyBackground = brightness > threshold && colorVariance < 40;
-
-    // Nếu là background → làm trong suốt
-    if (isLikelyBackground) {
-      data[i + 3] = 0; // Set alpha = 0 (transparent)
-    } else if (brightness > threshold - 20 && brightness <= threshold && colorVariance < 40) {
-      // Soft edge: Làm mờ dần cho edge mượt hơn
-      const fadeRatio = (brightness - (threshold - 20)) / 20;
-      data[i + 3] = Math.floor(alpha * (1 - fadeRatio));
+    // If similar to background, make transparent
+    if (diff < threshold) {
+      // Smooth transparency based on similarity
+      const alpha = Math.min(255, (diff / threshold) * 255);
+      data[i + 3] = alpha;
+    } else {
+      // Keep original alpha for foreground
+      data[i + 3] = 255;
     }
   }
 
+  // Apply edge smoothing (anti-aliasing)
+  applyEdgeSmoothing(data, canvas.width, canvas.height);
+
+  // Put processed data back
   ctx.putImageData(imageData, 0, 0);
+
   return canvas.toDataURL('image/png');
 }
 
 /**
- * Get image dimensions
+ * Get color samples from a rectangular area
  */
-export async function getImageDimensions(imageSrc) {
-  const image = await createImage(imageSrc);
+function getAreaSamples(data, width, startX, startY, areaWidth, areaHeight) {
+  const samples = [];
+  
+  for (let y = startY; y < startY + areaHeight; y++) {
+    for (let x = startX; x < startX + areaWidth; x++) {
+      const i = (y * width + x) * 4;
+      if (i < data.length) {
+        samples.push({
+          r: data[i],
+          g: data[i + 1],
+          b: data[i + 2]
+        });
+      }
+    }
+  }
+  
+  return samples;
+}
+
+/**
+ * Calculate average color from samples
+ */
+function calculateAverageColor(samples) {
+  if (samples.length === 0) {
+    return { r: 255, g: 255, b: 255 }; // Default to white
+  }
+
+  const sum = samples.reduce(
+    (acc, sample) => ({
+      r: acc.r + sample.r,
+      g: acc.g + sample.g,
+      b: acc.b + sample.b
+    }),
+    { r: 0, g: 0, b: 0 }
+  );
+
   return {
-    width: image.width,
-    height: image.height
+    r: Math.round(sum.r / samples.length),
+    g: Math.round(sum.g / samples.length),
+    b: Math.round(sum.b / samples.length)
   };
 }
 
 /**
- * Check if image has transparency
+ * Apply edge smoothing to reduce jagged edges
  */
-export async function hasTransparency(imageSrc) {
+function applyEdgeSmoothing(data, width, height) {
+  const tempData = new Uint8ClampedArray(data);
+
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const i = (y * width + x) * 4;
+      const alpha = tempData[i + 3];
+
+      // Only smooth edges (partially transparent pixels)
+      if (alpha > 0 && alpha < 255) {
+        // Average with neighbors
+        const neighbors = [
+          tempData[((y - 1) * width + x) * 4 + 3], // top
+          tempData[((y + 1) * width + x) * 4 + 3], // bottom
+          tempData[(y * width + (x - 1)) * 4 + 3], // left
+          tempData[(y * width + (x + 1)) * 4 + 3], // right
+        ];
+
+        const avgAlpha = neighbors.reduce((sum, a) => sum + a, alpha) / (neighbors.length + 1);
+        data[i + 3] = Math.round(avgAlpha);
+      }
+    }
+  }
+}
+
+/**
+ * Convert canvas to blob (for file uploads)
+ */
+export function canvasToBlob(canvas, type = 'image/png', quality = 1) {
+  return new Promise((resolve) => {
+    canvas.toBlob(resolve, type, quality);
+  });
+}
+
+/**
+ * Resize image to max dimensions (for optimization)
+ */
+export async function resizeImage(imageSrc, maxWidth = 1000, maxHeight = 1000) {
   const image = await createImage(imageSrc);
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
 
-  if (!ctx) return false;
+  let width = image.width;
+  let height = image.height;
 
-  canvas.width = image.width;
-  canvas.height = image.height;
-  ctx.drawImage(image, 0, 0);
-
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imageData.data;
-
-  // Check alpha channel
-  for (let i = 3; i < data.length; i += 4) {
-    if (data[i] < 255) {
-      return true; // Found transparent pixel
-    }
+  // Calculate new dimensions maintaining aspect ratio
+  if (width > maxWidth || height > maxHeight) {
+    const ratio = Math.min(maxWidth / width, maxHeight / height);
+    width = Math.round(width * ratio);
+    height = Math.round(height * ratio);
   }
 
-  return false; // No transparency found
+  canvas.width = width;
+  canvas.height = height;
+
+  ctx.drawImage(image, 0, 0, width, height);
+
+  return canvas.toDataURL('image/png');
 }

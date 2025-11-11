@@ -9,6 +9,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import CardPreview from "./CardPreview";
 import ImageCropModal from "./ImageCropModal";
+import DesignTab from "./DesignTab";
 
 export default function CardEditor({ onBack }) {
   const [cardData, setCardData] = useState(() => {
@@ -30,10 +31,10 @@ export default function CardEditor({ onBack }) {
       website: '',
       avatar: null,
       brandPhoto: null,
-      theme: {
-        colors: ['#667eea', '#764ba2', '#f093fb'],
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)'
-      },
+      theme: 'classic',
+      sticker: null,
+      colorTheme: { id: 'default', name: 'Teal Classic', primary: '#00343d', accent: '#3b82f6' },
+      fontStyle: { id: 'default', name: 'Default', family: 'system-ui, -apple-system, sans-serif' },
       socials: {
         facebook: '',
         linkedin: '',
@@ -46,8 +47,8 @@ export default function CardEditor({ onBack }) {
   const [activeTab, setActiveTab] = useState('customize');
   const [sections, setSections] = useState({
     profile: true,
-    headingText: true,
-    contactUs: true,
+    company: true,
+    contact: true,
     socialLinks: true
   });
   const [expandedSection, setExpandedSection] = useState('profile');
@@ -136,13 +137,6 @@ export default function CardEditor({ onBack }) {
     setShowCropModal(false);
   };
 
-  const applyPresetTheme = (colors) => {
-    updateCardData('theme', {
-      colors: colors,
-      background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%)`
-    });
-  };
-
   const handleSave = () => {
     setSaveStatus('saving');
     localStorage.setItem('cosma_card_data', JSON.stringify(cardData));
@@ -153,6 +147,11 @@ export default function CardEditor({ onBack }) {
         setSaveStatus('');
       }, 2000);
     }, 500);
+  };
+
+  // Theme selector handler
+  const handleThemeChange = (themeName) => {
+    updateCardData('theme', themeName);
   };
 
   return (
@@ -206,42 +205,110 @@ export default function CardEditor({ onBack }) {
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex gap-2">
-            <button
-              onClick={() => applyPresetTheme(['#667eea', '#764ba2', '#f093fb'])}
-              className="w-10 h-10 rounded-lg shadow-lg hover:scale-110 transition-all border-2 border-white/30 hover:border-white/60"
-              style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)' }}
-              title="Purple Dream"
-            />
-            <button
-              onClick={() => applyPresetTheme(['#FF6B6B', '#FFA500', '#FFD700'])}
-              className="w-10 h-10 rounded-lg shadow-lg hover:scale-110 transition-all border-2 border-white/30 hover:border-white/60"
-              style={{ background: 'linear-gradient(135deg, #FF6B6B 0%, #FFA500 50%, #FFD700 100%)' }}
-              title="Sunset Orange"
-            />
-            <button
-              onClick={() => applyPresetTheme(['#00C9FF', '#0084FF', '#667eea'])}
-              className="w-10 h-10 rounded-lg shadow-lg hover:scale-110 transition-all border-2 border-white/30 hover:border-white/60"
-              style={{ background: 'linear-gradient(135deg, #00C9FF 0%, #0084FF 50%, #667eea 100%)' }}
-              title="Ocean Blue"
-            />
-            <button
-              onClick={() => applyPresetTheme(['#34D399', '#10B981', '#059669'])}
-              className="w-10 h-10 rounded-lg shadow-lg hover:scale-110 transition-all border-2 border-white/30 hover:border-white/60"
-              style={{ background: 'linear-gradient(135deg, #34D399 0%, #10B981 50%, #059669 100%)' }}
-              title="Emerald Green"
-            />
-          </div>
+        {/* THEME SELECTOR - 4 Themes */}
+        <div className="flex items-center gap-3">
+          <span className="text-white text-sm font-medium mr-2">Card Theme:</span>
+          
+          {/* Theme 1: Classic */}
+          <button
+            onClick={() => handleThemeChange('classic')}
+            className={`relative w-16 h-10 rounded-lg transition-all overflow-hidden border-2 ${
+              cardData.theme === 'classic' 
+                ? 'border-[#ffcb66] scale-110' 
+                : 'border-white/30 hover:border-white/60'
+            }`}
+            title="Classic Theme"
+          >
+            <div className="absolute inset-0 flex">
+              <div className="w-1/2 bg-[#00343d]"></div>
+              <div className="w-1/2 bg-white"></div>
+            </div>
+            {cardData.theme === 'classic' && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                <FontAwesomeIcon icon={faCheck} className="text-[#ffcb66] text-lg" />
+              </div>
+            )}
+          </button>
+
+          {/* Theme 2: Arrow */}
+          <button
+            onClick={() => handleThemeChange('arrow')}
+            className={`relative w-16 h-10 rounded-lg transition-all overflow-hidden border-2 ${
+              cardData.theme === 'arrow' 
+                ? 'border-[#ffcb66] scale-110' 
+                : 'border-white/30 hover:border-white/60'
+            }`}
+            title="Arrow Theme"
+          >
+            <div className="absolute inset-0 flex">
+              <svg viewBox="0 0 64 40" className="w-full h-full">
+                <path d="M 0 0 L 48 0 L 56 20 L 48 40 L 0 40 Z" fill="#00343d"/>
+                <rect x="48" y="0" width="16" height="40" fill="white"/>
+              </svg>
+            </div>
+            {cardData.theme === 'arrow' && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                <FontAwesomeIcon icon={faCheck} className="text-[#ffcb66] text-lg" />
+              </div>
+            )}
+          </button>
+
+          {/* Theme 3: Shield */}
+          <button
+            onClick={() => handleThemeChange('shield')}
+            className={`relative w-16 h-10 rounded-lg transition-all overflow-hidden border-2 ${
+              cardData.theme === 'shield' 
+                ? 'border-[#ffcb66] scale-110' 
+                : 'border-white/30 hover:border-white/60'
+            }`}
+            title="Shield Theme"
+          >
+            <div className="absolute inset-0 bg-white">
+              <svg viewBox="0 0 64 40" className="w-full h-full">
+                <path d="M 20 0 L 44 0 L 52 6 L 52 34 L 32 40 L 12 34 L 12 6 Z" fill="#00343d"/>
+              </svg>
+            </div>
+            {cardData.theme === 'shield' && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                <FontAwesomeIcon icon={faCheck} className="text-[#ffcb66] text-lg" />
+              </div>
+            )}
+          </button>
+
+          {/* Theme 4: Wave */}
+          <button
+            onClick={() => handleThemeChange('wave')}
+            className={`relative w-16 h-10 rounded-lg transition-all overflow-hidden border-2 ${
+              cardData.theme === 'wave' 
+                ? 'border-[#ffcb66] scale-110' 
+                : 'border-white/30 hover:border-white/60'
+            }`}
+            title="Wave Theme"
+          >
+            <div className="absolute inset-0 bg-white">
+              <svg viewBox="0 0 64 40" className="w-full h-full">
+                <path d="M 0 0 L 48 0 Q 56 10 52 20 Q 48 30 56 40 L 0 40 Z" fill="#00343d"/>
+              </svg>
+            </div>
+            {cardData.theme === 'wave' && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                <FontAwesomeIcon icon={faCheck} className="text-[#ffcb66] text-lg" />
+              </div>
+            )}
+          </button>
         </div>
       </header>
 
-      {/* Main Content - COMPACT */}
+      {/* Main Content */}
       <div className="flex h-screen" style={{ height: 'calc(100vh - 60px)' }}>
-        {/* Left Panel - COMPACT + HIDDEN SCROLLBAR */}
+        {/* Left Panel - Form sections or Design Tab */}
         <div className="w-1/2 p-4 space-y-2.5 overflow-y-auto border-r border-white/10 custom-scrollbar">
           
-          {/* Profile Section - COMPACT */}
+          {activeTab === 'design' ? (
+            <DesignTab cardData={cardData} updateCardData={updateCardData} />
+          ) : activeTab === 'customize' ? (
+            <>
+          {/* Profile Section */}
           <div className="bg-gradient-to-r from-[#E8F5E8] to-[#D4E4F7] rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3">
               <button
@@ -269,11 +336,9 @@ export default function CardEditor({ onBack }) {
             {expandedSection === 'profile' && sections.profile && (
               <div className="px-4 pb-4 space-y-3">
                 <div className="flex gap-3">
-                  {/* Avatar - COMPACT */}
+                  {/* Avatar */}
                   <div className="flex-1">
-                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                      Profile Photo
-                    </label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Profile Photo</label>
                     <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-400 rounded-lg cursor-pointer bg-white/50 hover:bg-white/70 transition-all overflow-hidden group">
                       {cardData.avatar ? (
                         <div className="relative w-full h-full">
@@ -286,31 +351,18 @@ export default function CardEditor({ onBack }) {
                         <div className="flex flex-col items-center">
                           <FontAwesomeIcon icon={faImage} className="text-2xl text-gray-400 mb-1.5" />
                           <span className="text-xs text-gray-500">Click to upload</span>
-                          <span className="text-[10px] text-gray-400 mt-0.5">Crop & adjust</span>
                         </div>
                       )}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarUpload}
-                        className="hidden"
-                      />
+                      <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
                     </label>
                     {cardData.avatar && (
-                      <button
-                        onClick={() => updateCardData('avatar', null)}
-                        className="mt-1.5 w-full text-[10px] text-red-600 hover:text-red-800 font-medium"
-                      >
-                        Remove
-                      </button>
+                      <button onClick={() => updateCardData('avatar', null)} className="mt-1.5 w-full text-[10px] text-red-600 hover:text-red-800 font-medium">Remove</button>
                     )}
                   </div>
 
-                  {/* Brand Photo - COMPACT */}
+                  {/* Brand Logo */}
                   <div className="flex-1">
-                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                      Brand Logo
-                    </label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Brand Logo</label>
                     <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-400 rounded-lg cursor-pointer bg-white/50 hover:bg-white/70 transition-all overflow-hidden group">
                       {cardData.brandPhoto ? (
                         <div className="relative w-full h-full">
@@ -323,238 +375,119 @@ export default function CardEditor({ onBack }) {
                         <div className="flex flex-col items-center">
                           <FontAwesomeIcon icon={faImage} className="text-2xl text-gray-400 mb-1.5" />
                           <span className="text-xs text-gray-500">Click to upload</span>
-                          <span className="text-[10px] text-gray-400 mt-0.5">Auto remove BG</span>
                         </div>
                       )}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleBrandPhotoUpload}
-                        className="hidden"
-                      />
+                      <input type="file" accept="image/*" onChange={handleBrandPhotoUpload} className="hidden" />
                     </label>
                     {cardData.brandPhoto && (
-                      <button
-                        onClick={() => updateCardData('brandPhoto', null)}
-                        className="mt-1.5 w-full text-[10px] text-red-600 hover:text-red-800 font-medium"
-                      >
-                        Remove
-                      </button>
+                      <button onClick={() => updateCardData('brandPhoto', null)} className="mt-1.5 w-full text-[10px] text-red-600 hover:text-red-800 font-medium">Remove</button>
                     )}
                   </div>
                 </div>
 
-                {/* Name - COMPACT */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={cardData.name}
-                    onChange={(e) => updateCardData('name', e.target.value)}
-                    placeholder="John Doe"
-                    className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
-                  />
-                </div>
-
-                {/* Email - COMPACT */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    value={cardData.email}
-                    onChange={(e) => updateCardData('email', e.target.value)}
-                    placeholder="john@example.com"
-                    className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
-                  />
-                </div>
-
-                {/* Phone - COMPACT */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Phone Number *
-                  </label>
-                  <input
-                    type="tel"
-                    value={cardData.phone}
-                    onChange={(e) => updateCardData('phone', e.target.value)}
-                    placeholder="+84 123 456 789"
-                    className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
-                  />
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Full Name *</label>
+                  <input type="text" value={cardData.name} onChange={(e) => updateCardData('name', e.target.value)} placeholder="John Doe" className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm" />
                 </div>
               </div>
             )}
           </div>
 
-          {/* Heading + Text - COMPACT */}
+          {/* Company Info Section */}
           <div className="bg-gradient-to-r from-[#E8F5E8] to-[#D4E4F7] rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3">
-              <button
-                onClick={() => toggleExpanded('headingText')}
-                className="flex items-center gap-3 flex-1"
-              >
-                <span className="text-base font-semibold text-gray-800">Heading + Text</span>
-                <FontAwesomeIcon 
-                  icon={expandedSection === 'headingText' ? faChevronUp : faChevronDown} 
-                  className="text-gray-600 text-sm"
-                />
+              <button onClick={() => toggleExpanded('company')} className="flex items-center gap-3 flex-1">
+                <span className="text-base font-semibold text-gray-800">Company Info</span>
+                <FontAwesomeIcon icon={expandedSection === 'company' ? faChevronUp : faChevronDown} className="text-gray-600 text-sm" />
               </button>
               <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={sections.headingText}
-                  onChange={() => toggleSection('headingText')}
-                  className="sr-only peer"
-                />
+                <input type="checkbox" checked={sections.company} onChange={() => toggleSection('company')} className="sr-only peer" />
                 <div className="w-11 h-6 bg-gray-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ffcb66]"></div>
               </label>
             </div>
-            {expandedSection === 'headingText' && sections.headingText && (
+            {expandedSection === 'company' && sections.company && (
               <div className="px-4 pb-4 space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Job Title
-                  </label>
-                  <input
-                    type="text"
-                    value={cardData.title}
-                    onChange={(e) => updateCardData('title', e.target.value)}
-                    placeholder="Full Stack Developer"
-                    className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
-                  />
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Company Name</label>
+                  <input type="text" value={cardData.company} onChange={(e) => updateCardData('company', e.target.value)} placeholder="Cosma Tech" className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Company
-                  </label>
-                  <input
-                    type="text"
-                    value={cardData.company}
-                    onChange={(e) => updateCardData('company', e.target.value)}
-                    placeholder="Cosma Tech"
-                    className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
-                  />
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Job Title</label>
+                  <input type="text" value={cardData.title} onChange={(e) => updateCardData('title', e.target.value)} placeholder="Full Stack Developer" className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm" />
                 </div>
               </div>
             )}
           </div>
 
-          {/* Contact Us - COMPACT */}
+          {/* Contact Information */}
           <div className="bg-gradient-to-r from-[#E8F5E8] to-[#D4E4F7] rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3">
-              <button
-                onClick={() => toggleExpanded('contactUs')}
-                className="flex items-center gap-3 flex-1"
-              >
-                <span className="text-base font-semibold text-gray-800">Contact Us</span>
-                <FontAwesomeIcon 
-                  icon={expandedSection === 'contactUs' ? faChevronUp : faChevronDown} 
-                  className="text-gray-600 text-sm"
-                />
+              <button onClick={() => toggleExpanded('contact')} className="flex items-center gap-3 flex-1">
+                <span className="text-base font-semibold text-gray-800">Contact Information</span>
+                <FontAwesomeIcon icon={expandedSection === 'contact' ? faChevronUp : faChevronDown} className="text-gray-600 text-sm" />
               </button>
               <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={sections.contactUs}
-                  onChange={() => toggleSection('contactUs')}
-                  className="sr-only peer"
-                />
+                <input type="checkbox" checked={sections.contact} onChange={() => toggleSection('contact')} className="sr-only peer" />
                 <div className="w-11 h-6 bg-gray-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ffcb66]"></div>
               </label>
             </div>
-            {expandedSection === 'contactUs' && sections.contactUs && (
+            {expandedSection === 'contact' && sections.contact && (
               <div className="px-4 pb-4 space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Location
-                  </label>
-                  <input
-                    type="text"
-                    value={cardData.location}
-                    onChange={(e) => updateCardData('location', e.target.value)}
-                    placeholder="Ho Chi Minh City, Vietnam"
-                    className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
-                  />
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Email *</label>
+                  <input type="email" value={cardData.email} onChange={(e) => updateCardData('email', e.target.value)} placeholder="john@example.com" className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Website
-                  </label>
-                  <input
-                    type="text"
-                    value={cardData.website}
-                    onChange={(e) => updateCardData('website', e.target.value)}
-                    placeholder="www.example.com"
-                    className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
-                  />
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Phone Number *</label>
+                  <input type="tel" value={cardData.phone} onChange={(e) => updateCardData('phone', e.target.value)} placeholder="+84 123 456 789" className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Location</label>
+                  <input type="text" value={cardData.location} onChange={(e) => updateCardData('location', e.target.value)} placeholder="Ho Chi Minh City, Vietnam" className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Website</label>
+                  <input type="text" value={cardData.website} onChange={(e) => updateCardData('website', e.target.value)} placeholder="www.example.com" className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm" />
                 </div>
               </div>
             )}
           </div>
 
-          {/* Social Links - COMPACT */}
+          {/* Social Links */}
           <div className="bg-gradient-to-r from-[#E8F5E8] to-[#D4E4F7] rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3">
-              <button
-                onClick={() => toggleExpanded('socialLinks')}
-                className="flex items-center gap-3 flex-1"
-              >
+              <button onClick={() => toggleExpanded('socialLinks')} className="flex items-center gap-3 flex-1">
                 <span className="text-base font-semibold text-gray-800">Social Links</span>
-                <FontAwesomeIcon 
-                  icon={expandedSection === 'socialLinks' ? faChevronUp : faChevronDown} 
-                  className="text-gray-600 text-sm"
-                />
+                <FontAwesomeIcon icon={expandedSection === 'socialLinks' ? faChevronUp : faChevronDown} className="text-gray-600 text-sm" />
               </button>
               <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={sections.socialLinks}
-                  onChange={() => toggleSection('socialLinks')}
-                  className="sr-only peer"
-                />
+                <input type="checkbox" checked={sections.socialLinks} onChange={() => toggleSection('socialLinks')} className="sr-only peer" />
                 <div className="w-11 h-6 bg-gray-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ffcb66]"></div>
               </label>
             </div>
             {expandedSection === 'socialLinks' && sections.socialLinks && (
               <div className="px-4 pb-4 space-y-2.5">
-                <input
-                  type="url"
-                  value={cardData.socials.facebook}
-                  onChange={(e) => updateNestedField('socials', 'facebook', e.target.value)}
-                  placeholder="https://facebook.com/yourprofile"
-                  className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
-                />
-                <input
-                  type="url"
-                  value={cardData.socials.linkedin}
-                  onChange={(e) => updateNestedField('socials', 'linkedin', e.target.value)}
-                  placeholder="https://linkedin.com/in/yourprofile"
-                  className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
-                />
-                <input
-                  type="url"
-                  value={cardData.socials.github}
-                  onChange={(e) => updateNestedField('socials', 'github', e.target.value)}
-                  placeholder="https://github.com/yourprofile"
-                  className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
-                />
-                <input
-                  type="url"
-                  value={cardData.socials.twitter}
-                  onChange={(e) => updateNestedField('socials', 'twitter', e.target.value)}
-                  placeholder="https://twitter.com/yourprofile"
-                  className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm"
-                />
+                <input type="url" value={cardData.socials.facebook} onChange={(e) => updateNestedField('socials', 'facebook', e.target.value)} placeholder="https://facebook.com/yourprofile" className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm" />
+                <input type="url" value={cardData.socials.linkedin} onChange={(e) => updateNestedField('socials', 'linkedin', e.target.value)} placeholder="https://linkedin.com/in/yourprofile" className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm" />
+                <input type="url" value={cardData.socials.github} onChange={(e) => updateNestedField('socials', 'github', e.target.value)} placeholder="https://github.com/yourprofile" className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm" />
+                <input type="url" value={cardData.socials.twitter} onChange={(e) => updateNestedField('socials', 'twitter', e.target.value)} placeholder="https://twitter.com/yourprofile" className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 focus:outline-none focus:border-[#ffcb66] focus:ring-2 focus:ring-[#ffcb66]/20 text-sm" />
               </div>
             )}
           </div>
 
+            </>
+          ) : activeTab === 'qrcode' ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center text-white">
+                <h3 className="text-xl font-bold mb-2">QR Code Generator</h3>
+                <p className="text-sm opacity-75">Coming soon...</p>
+              </div>
+            </div>
+          ) : null}
+
         </div>
 
-        {/* Right Panel - COMPACT + HIDDEN SCROLLBAR */}
+        {/* Right Panel - Preview */}
         <div className="w-1/2 flex flex-col" style={{ backgroundColor: '#004d5c' }}>
           <div className="p-4 border-b border-white/10">
             <h3 className="text-white text-base font-semibold text-center">Live Preview</h3>
@@ -589,6 +522,22 @@ export default function CardEditor({ onBack }) {
           showBackgroundRemoval={cropModalType === 'logo'}
         />
       )}
+
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.3);
+        }
+      `}</style>
     </div>
   );
 }
