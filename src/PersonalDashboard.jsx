@@ -15,12 +15,15 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import CardPreview from './CardPreview';
 import QRCodeDisplay from './QRCodeDisplay';
+import ContactsDashboard from './ContactsDashboard';
+import ShareCardModal from './ShareCardModal';
 
 export default function PersonalDashboard({ onLogout, onBackToHome, onEditCard }) {
   const [selectedMenu, setSelectedMenu] = useState('cards');
   const [activeTab, setActiveTab] = useState('cardview');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   
   // Cards state - load from localStorage
   const [cards, setCards] = useState(() => {
@@ -154,7 +157,7 @@ export default function PersonalDashboard({ onLogout, onBackToHome, onEditCard }
   };
 
   const handleShareCard = () => {
-    alert('Chức năng share card - Coming soon!');
+    setShareModalOpen(true);
   };
 
   // Get currently selected card
@@ -247,56 +250,56 @@ export default function PersonalDashboard({ onLogout, onBackToHome, onEditCard }
                 <FontAwesomeIcon icon={faBars} className="text-xl" />
               </button>
 
-              {/* Cards title */}
+              {/* Title */}
+              <h2 className="text-2xl font-bold text-white">
+                {selectedMenu === 'cards' ? 'Cards' : 'Contacts'}
+              </h2>
+
+              {/* Create button (only for Cards view) */}
               {selectedMenu === 'cards' && (
-                <div className="flex items-center gap-4">
-                  <h2 className="text-2xl font-bold text-white">Cards</h2>
-                  <button
-                    onClick={handleCreateCard}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:scale-105"
-                    style={{ backgroundColor: '#ffcb66', color: '#000' }}
-                  >
-                    <FontAwesomeIcon icon={faPlus} />
-                    Create
-                  </button>
-                </div>
+                <button
+                  onClick={handleCreateCard}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:scale-105"
+                  style={{ backgroundColor: '#ffcb66', color: '#000' }}
+                >
+                  <FontAwesomeIcon icon={faPlus} />
+                  Create
+                </button>
               )}
             </div>
 
-            {/* Right side buttons */}
-            <div className="flex items-center gap-3">
-              {selectedMenu === 'cards' && (
-                <>
-                  <button
-                    onClick={handleEditCard}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-white/20 text-white hover:bg-white/5 transition-all"
-                  >
-                    <FontAwesomeIcon icon={faEdit} />
-                    <span>Edit</span>
-                  </button>
-                  <button
-                    onClick={handleDeleteCard}
-                    disabled={cards.length === 1}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border border-white/20 text-white transition-all ${
-                      cards.length === 1 
-                        ? 'opacity-50 cursor-not-allowed' 
-                        : 'hover:bg-red-500/10 hover:border-red-500'
-                    }`}
-                  >
-                    <FontAwesomeIcon icon={faTrash} />
-                    <span>Delete</span>
-                  </button>
-                </>
-              )}
-              <button
-                onClick={handleShareCard}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all hover:scale-105"
-                style={{ backgroundColor: '#ffcb66', color: '#000' }}
-              >
-                <FontAwesomeIcon icon={faShare} />
-                <span>Share card</span>
-              </button>
-            </div>
+            {/* Right side buttons - only for Cards view */}
+            {selectedMenu === 'cards' && (
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleEditCard}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-white/20 text-white hover:bg-white/5 transition-all"
+                >
+                  <FontAwesomeIcon icon={faEdit} />
+                  <span>Edit</span>
+                </button>
+                <button
+                  onClick={handleDeleteCard}
+                  disabled={cards.length === 1}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border border-white/20 text-white transition-all ${
+                    cards.length === 1 
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : 'hover:bg-red-500/10 hover:border-red-500'
+                  }`}
+                >
+                  <FontAwesomeIcon icon={faTrash} />
+                  <span>Delete</span>
+                </button>
+                <button
+                  onClick={handleShareCard}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all hover:scale-105"
+                  style={{ backgroundColor: '#ffcb66', color: '#000' }}
+                >
+                  <FontAwesomeIcon icon={faShare} />
+                  <span>Share card</span>
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
@@ -393,17 +396,18 @@ export default function PersonalDashboard({ onLogout, onBackToHome, onEditCard }
               </div>
             </>
           ) : (
-            // Contacts view
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center text-white">
-                <FontAwesomeIcon icon={faAddressBook} className="text-6xl mb-4 opacity-50" />
-                <h3 className="text-2xl font-bold mb-2">Contacts</h3>
-                <p className="text-white/70">Quản lý danh bạ của bạn - Coming soon!</p>
-              </div>
-            </div>
+            // Contacts view - FULL COMPONENT
+            <ContactsDashboard />
           )}
         </div>
       </main>
+
+      {/* Share Card Modal */}
+      <ShareCardModal 
+        cardData={selectedCard?.data}
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+      />
     </div>
   );
 }

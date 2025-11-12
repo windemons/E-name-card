@@ -66,7 +66,13 @@ export default function CardEditor({ onBack }) {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      localStorage.setItem('cosma_card_data', JSON.stringify(cardData));
+      try {
+        localStorage.setItem('cosma_card_data', JSON.stringify(cardData));
+      } catch (err) {
+        if (err.name === 'QuotaExceededError') {
+          console.warn('Auto-save failed: Storage quota exceeded');
+        }
+      }
     }, 1000);
     return () => clearTimeout(timer);
   }, [cardData]);
@@ -147,32 +153,71 @@ export default function CardEditor({ onBack }) {
   const handleSave = () => {
     setSaveStatus('saving');
     
-    // Save to main card data
-    localStorage.setItem('cosma_card_data', JSON.stringify(cardData));
-    
-    // Also update the card in the all cards list
-    const currentCardId = localStorage.getItem('cosma_current_card_id');
-    if (currentCardId) {
-      const allCards = JSON.parse(localStorage.getItem('cosma_all_cards') || '[]');
-      const cardIndex = allCards.findIndex(c => c.id === parseInt(currentCardId));
+    try {
+      // Save to main card data
+      localStorage.setItem('cosma_card_data', JSON.stringify(cardData));
       
-      if (cardIndex !== -1) {
-        allCards[cardIndex].data = cardData;
-        // Update card name from data if available
-        if (cardData.name) {
-          allCards[cardIndex].name = cardData.name;
+      // Also update the card in the all cards list
+      const currentCardId = localStorage.getItem('cosma_current_card_id');
+      if (currentCardId) {
+        const allCards = JSON.parse(localStorage.getItem('cosma_all_cards') || '[]');
+        const cardIndex = allCards.findIndex(c => c.id === parseInt(currentCardId));
+        
+        if (cardIndex !== -1) {
+          allCards[cardIndex].data = cardData;
+          // Update card name from data if available
+          if (cardData.name) {
+            allCards[cardIndex].name = cardData.name;
+          }
+          
+          try {
+            localStorage.setItem('cosma_all_cards', JSON.stringify(allCards));
+          } catch (err) {
+            // If quota exceeded, try saving with lightweight data
+            if (err.name === 'QuotaExceededError') {
+              console.warn('Storage quota exceeded, saving with lightweight data');
+              
+              // Create lightweight version without images for the list
+              const lightCard = {
+                ...allCards[cardIndex],
+                data: {
+                  ...cardData,
+                  avatar: null,  // Remove heavy images from list
+                  brandPhoto: null
+                }
+              };
+              allCards[cardIndex] = lightCard;
+              
+              // Try again with lightweight data
+              localStorage.setItem('cosma_all_cards', JSON.stringify(allCards));
+              
+              // Main card data still has images
+              localStorage.setItem('cosma_card_data', JSON.stringify(cardData));
+            } else {
+              throw err;
+            }
+          }
         }
-        localStorage.setItem('cosma_all_cards', JSON.stringify(allCards));
+      }
+      
+      setTimeout(() => {
+        setSaveStatus('saved');
+        console.log('Card saved:', cardData);
+        setTimeout(() => {
+          setSaveStatus('');
+        }, 2000);
+      }, 500);
+      
+    } catch (error) {
+      console.error('Error saving card:', error);
+      setSaveStatus('');
+      
+      if (error.name === 'QuotaExceededError') {
+        alert('Storage full! Try removing some images or clear browser data.');
+      } else {
+        alert('Failed to save card. Please try again.');
       }
     }
-    
-    setTimeout(() => {
-      setSaveStatus('saved');
-      console.log('Card saved:', cardData);
-      setTimeout(() => {
-        setSaveStatus('');
-      }, 2000);
-    }, 500);
   };
 
   // Theme selector handler

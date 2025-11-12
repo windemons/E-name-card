@@ -1,13 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import HomePage from './HomePage';
 import LoginRegister from './LoginRegister';
 import PackageSelection from './PackageSelection';
 import PersonalDashboard from './PersonalDashboard';
 import CardEditorCustomize from './CardEditorCustomize';
+import PublicCardView from './PublicCardView';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedPackage, setSelectedPackage] = useState(null);
+  const [sharedCardId, setSharedCardId] = useState(null);
+
+  // Check URL on mount for shared card links
+  useEffect(() => {
+    const path = window.location.pathname;
+    
+    // Check if URL is /card/:id
+    if (path.startsWith('/card/')) {
+      const cardId = path.split('/card/')[1];
+      if (cardId) {
+        setSharedCardId(cardId);
+        setCurrentPage('publicCard');
+      }
+    }
+  }, []);
 
   // Handler cho việc chuyển trang
   const handleSignInClick = () => {
@@ -16,6 +32,9 @@ function App() {
 
   const handleBackToHome = () => {
     setCurrentPage('home');
+    setSharedCardId(null);
+    // Reset URL to home
+    window.history.pushState({}, '', '/');
   };
 
   const handleLoginSuccess = () => {
@@ -72,8 +91,13 @@ function App() {
     );
   }
 
+  // Public Card View - for shared cards
+  if (currentPage === 'publicCard' && sharedCardId) {
+    return <PublicCardView cardId={sharedCardId} onBackToHome={handleBackToHome} />;
+  }
+
   // Default: HomePage
   return <HomePage onSignInClick={handleSignInClick} />;
 }
 
-export default App; 
+export default App;
