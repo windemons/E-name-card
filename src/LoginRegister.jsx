@@ -386,7 +386,7 @@ export default function LoginRegister({ onBackToHome, onLoginSuccess }) {
               </button>
             </div>
             
-            <p className="text-sm mb-4">or use your email password</p>
+            <p className="text-sm mb-4">or use your Cosma Account</p>
             
             {/* Form Inputs */}
             <div className="w-full mb-3">
@@ -443,7 +443,7 @@ export default function LoginRegister({ onBackToHome, onLoginSuccess }) {
               }}
               className="text-sm text-white mb-4 hover:underline"
             >
-              Forget Your Password?
+              Forgot Your Password?
             </a>
             
             <button 
@@ -703,7 +703,7 @@ export default function LoginRegister({ onBackToHome, onLoginSuccess }) {
           }}
         >
           <div className="flex flex-col items-center justify-center h-full px-12 text-center rounded-3xl">
-            <h1 className="text-5xl font-bold mb-4 text-black">Welcome Back!</h1>
+            <h1 className="text-5xl font-bold mb-4 text-black">Welcome!</h1>
             <p className="text-black mb-8 font-medium">
               Enter your personal details to use all of site features
             </p>
