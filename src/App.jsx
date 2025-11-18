@@ -5,6 +5,7 @@ import PackageSelection from './PackageSelection';
 import PersonalDashboard from './PersonalDashboard';
 import CardEditorCustomize from './CardEditorCustomize';
 import PublicCardView from './PublicCardView';
+import PricingPage from './PricingPage';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -56,9 +57,25 @@ function App() {
     }
   };
 
+  // Handler for pricing page
+  const handleViewPricing = () => {
+    setCurrentPage('pricing');
+  };
+
+  // Handler when user selects a plan from pricing page
+  const handleGetStarted = (planType, tier) => {
+    console.log('Selected plan:', planType, tier);
+    // Redirect to login/signup
+    setCurrentPage('login');
+  };
+
   // Routing logic
   if (currentPage === 'login') {
     return <LoginRegister onBackToHome={handleBackToHome} onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  if (currentPage === 'pricing') {
+    return <PricingPage onBackToHome={handleBackToHome} onGetStarted={handleGetStarted} />;
   }
 
   if (currentPage === 'packageSelection') {
@@ -97,7 +114,7 @@ function App() {
   }
 
   // Default: HomePage
-  return <HomePage onSignInClick={handleSignInClick} />;
+  return <HomePage onSignInClick={handleSignInClick} onViewPricing={handleViewPricing} />;
 }
 
 export default App;
